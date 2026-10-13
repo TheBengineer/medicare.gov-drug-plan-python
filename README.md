@@ -46,9 +46,23 @@ Saved 53 plans to plans.json
 | `--type pdp` / `--type ma` | Which plans to include: `pdp` = stand-alone drug plans (default), `ma` = Medicare Advantage. Both can be given. |
 | `--lis LEVEL` | Extra Help level, e.g. `LIS_LEVEL_1A`. Defaults to `LIS_NO_HELP`. |
 | `--details` | Also save each plan's full benefits, per-drug costs at each pharmacy, and formulary info (tier, prior authorization, quantity limits). Slower and makes a much larger file. |
-| `-o FILE` | Output path (default `plans_<zip>_<year>.json`) |
+| `-o FILE` | JSON output path (default `plans_<zip>_<year>.json`) |
+| `--csv [FILE]` | Also write a CSV with one row per plan. Without a file name, it uses the JSON name with `.csv`. |
 
 A full run with `--details` across 53 plans took about 30 seconds and produced a 4.8 MB file.
+
+### CSV export
+
+`--csv` writes a spreadsheet-friendly file with one row per plan, cheapest first. To convert a JSON report you already saved, without searching again:
+
+```bash
+uv run medicare-plans csv plans.json              # writes plans.csv
+uv run medicare-plans csv plans.json -o compare.csv
+```
+
+Columns: `rank`, `plan_key`, `name`, `organization`, `plan_type`, `covers_drugs`, `estimated_yearly_total` (also `_retail` and `_mail_order`), `yearly_drug_cost`, `yearly_premium_remaining`, `monthly_premium`, Part C / Part D premiums, `part_b_premium_reduction`, drug and health deductibles, `max_out_of_pocket`, `star_rating`, `in_network_pharmacies`, `supports_mail_order`, the contract/plan/segment IDs, `year` and `website`.
+
+Reports made with `--details` also get six columns per drug, for example `Atorvastatin Calcium 40 MG: tier`: `covered`, `tier`, `prior_auth`, `step_therapy`, `quantity_limit`, and `lowest_yearly_cost` (the cheapest of the selected pharmacies).
 
 ### JSON format
 
@@ -109,6 +123,9 @@ with PlanFinder() as pf:
     )
 
 cheapest = report["plans"][0]
+
+from medicare_plan_finder import write_csv
+write_csv(report, "plans.csv")
 ```
 
 Individual endpoints are also available:

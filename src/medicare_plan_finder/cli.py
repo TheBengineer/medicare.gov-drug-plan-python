@@ -1,7 +1,8 @@
-"""Command line: compare Medicare plans and save every plan as JSON.
+"""Command line: compare Medicare plans and save every plan as JSON and/or CSV.
 
     medicare-plans compare --zip 30577 --county Stephens \\
-        --drug atorvastatin:40:30 --drug lisinopril:10 -o plans.json
+        --drug atorvastatin:40:30 --drug lisinopril:10 -o plans.json --csv plans.csv
+    medicare-plans csv plans.json            # convert a saved report to plans.csv
 """
 
 from __future__ import annotations
@@ -12,10 +13,9 @@ import sys
 from datetime import date
 from pathlib import Path
 
-from .client import LIS_LEVELS, LIS_NO_HELP, MA, MAPD, PDP, PlanFinder
+from .client import LIS_LEVELS, LIS_NO_HELP, MA, PlanFinder
 from .compare import PLAN_CATEGORIES, CompareError, DrugSpec, compare_plans
-
-PLAN_TYPE_LABELS = {PDP: "PDP", MAPD: "MAPD", MA: "MA"}
+from .export import PLAN_TYPE_LABELS, write_csv
 
 
 def _default_year() -> int:
@@ -30,7 +30,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
     c = sub.add_parser(
         "compare",
-        help="search all plans and write them to a JSON file",
+        help="search all plans and write them to JSON (and optionally CSV)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""drug formats:
   --drug NAME[:STRENGTH[:QTY[:DAYS]]]   e.g. atorvastatin, atorvastatin:40, lisinopril:10:60:90
@@ -51,9 +51,15 @@ def _build_parser() -> argparse.ArgumentParser:
     c.add_argument("--lis", default=LIS_NO_HELP, choices=LIS_LEVELS, help="Extra Help level (default: none)")
     c.add_argument("--details", action="store_true",
                    help="also fetch each plan's full details, per-drug costs and formulary info (slower)")
-    c.add_argument("-o", "--output", type=Path, help="output file (default: plans_<zip>_<year>.json)")
+    c.add_argument("-o", "--output", type=Path, help="JSON output file (default: plans_<zip>_<year>.json)")
+    c.add_argument("--csv", nargs="?", const=True, default=None, metavar="FILE",
+                   help="also write a CSV, one row per plan (default name: the JSON name with .csv)")
     c.add_argument("--headless", action="store_true",
                    help="run Chrome headless (medicare.gov currently blocks this)")
+
+    x = sub.add_parser("csv", help="convert a saved JSON report to CSV")
+    x.add_argument("report", type=Path, help="JSON file written by `compare`")
+    x.add_argument("-o", "--output", type=Path, help="CSV output file (default: same name with .csv)")
     return parser
 
 
@@ -72,6 +78,23 @@ def _print_summary(report: dict) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
+    if args.command == "csv":
+        return _convert(args)
+    return _compare(args)
+
+
+def _convert(args) -> int:
+    try:
+        report = json.loads(args.report.read_text())
+    except (OSError, json.JSONDecodeError) as e:
+        sys.exit(f"error: can't read {args.report}: {e}")
+    output = args.output or args.report.with_suffix(".csv")
+    n = write_csv(report, output)
+    print(f"Saved {n} plans to {output}")
+    return 0
+
+
+def _compare(args) -> int:
     if len(args.pharmacy) > 5:
         sys.exit("error: at most 5 pharmacies")
 
@@ -107,6 +130,10 @@ def main(argv: list[str] | None = None) -> int:
     if any(p.get("plan_type") == MA for p in report["plans"]):
         print("\nMA = Medicare Advantage with no drug coverage: its estimate is the full drug price.")
     print(f"\nSaved {report['plan_count']} plans to {output}")
+    if args.csv:
+        csv_path = output.with_suffix(".csv") if args.csv is True else Path(args.csv)
+        write_csv(report, csv_path)
+        print(f"Saved {report['plan_count']} plans to {csv_path}")
     return 0
 
 

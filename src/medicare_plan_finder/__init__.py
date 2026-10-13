@@ -13,6 +13,7 @@ from .client import (
     plan_ref,
 )
 from .compare import CompareError, DrugSpec, compare_plans
+from .export import report_rows, write_csv
 
 __all__ = [
     "CompareError",
@@ -30,4 +31,6 @@ __all__ = [
     "Prescription",
     "plan_key",
     "plan_ref",
+    "report_rows",
+    "write_csv",
 ]
