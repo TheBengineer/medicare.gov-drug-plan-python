@@ -1,7 +1,7 @@
 [project]
 name = "medicare-plan-finder"
 version = "0.1.0"
-description = "Add your description here"
+description = "Compare Medicare plans via the Medicare.gov Plan Finder"
 readme = "README.md"
 authors = [
     { name = "The Bengineer", email = "bengineeringelm@gmail.com" }
@@ -10,6 +10,9 @@ requires-python = ">=3.12"
 dependencies = [
     "playwright>=1.63.0",
 ]
+
+[project.scripts]
+medicare-plans = "medicare_plan_finder.cli:main"
 
 [build-system]
 requires = ["uv_build>=0.11.29,<0.12.0"]

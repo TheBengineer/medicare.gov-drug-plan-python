@@ -12,8 +12,12 @@ from .client import (
     plan_key,
     plan_ref,
 )
+from .compare import CompareError, DrugSpec, compare_plans
 
 __all__ = [
+    "CompareError",
+    "DrugSpec",
+    "compare_plans",
     "LIS_NO_HELP",
     "MA",
     "MAPD",
